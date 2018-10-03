@@ -2,6 +2,15 @@
 
 @section('content')
 <div class="container">
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     <div class="row panel">
         <div class="col-md-8 col-md-offset-2">
             <form class="form-horizontal" method="post" action={{url('/start-project')}}>
@@ -14,7 +23,7 @@
                     <div class="form-group">
                         <label class="col-md-4 control-label" for="start_day">作業月日</label>
                         <div class="col-md-3 input-group date" data-provide="date">
-			                <input id = "start_day" name="start_day" type="text" placeholder="作業日付" class="form-control input-md" required="">
+			                <input id = "start_day" name="start_day" type="text" placeholder="作業日付" class="form-control input-md" required="" readonly="readonly">
                             <div class="input-group-addon">
                                 <span class="glyphicon glyphicon-th"></span>
                             </div>
@@ -27,7 +36,7 @@
                     <div class="form-group">
                         <label class="col-md-4 control-label" for="start_time">作業開始時刻</label>
                         <div class="col-md-2 input-group clockpicker1">
-                            <input id="start_time" name="start_time" type="text" class="form-control input-md" required="" placeholder="始まる時間">
+                            <input id="start_time" name="start_time" type="text" class="form-control input-md" required="" placeholder="始まる時間" readonly="readonly">
                             <span class="input-group-addon">
                                 <span class="glyphicon glyphicon-time"></span>
                             </span>
@@ -58,6 +67,8 @@
                                 <option value="5" @if($userproject->lunch_time == 5) selected="true" @endif >02:00</option>
                                 <option value="6" @if($userproject->lunch_time == 6) selected="true" @endif >02:30</option>
                                 <option value="7" @if($userproject->lunch_time == 7) selected="true" @endif >03:00</option>
+                                <option value="8" @if($userproject->lunch_time == 8) selected="true" @endif >03:30</option>
+                                <option value="9" @if($userproject->lunch_time == 9) selected="true" @endif >04:00</option>
                             </select>
                         </div>
                     </div>
@@ -70,8 +81,8 @@
                     <!-- Select Basic -->
                     <div class="form-group">
                         <label class="col-md-4 control-label" for="project">プロジェクトを選択</label>
-                        <div class="col-md-4 input-group">
-                            <select id="project" name="project" class="form-control">
+                        <div class="col-md-6 input-group">
+                            <select id="project" name="project" class="form-control combobox">
                             @foreach ($projects as $project)
                                 <option value="{{$project->id}}"
                                 @if($project->id == $userproject->project_id)
@@ -116,14 +127,12 @@
                     </div>
 
                     <div class="form-group" style="margin-top: -8px;">
-                        <label class="col-md-4 control-label" for="late">遅刻する</label>
+                        <label class="col-md-4 control-label" for="late">備考</label>
                         <div class="col-md-4 input-group">
-			<input id="late" type="checkbox" class="checkbox" name="late_chck" onclick="dynInput(this);" style="float: left; margin-top: 3px;"/>
+			<textarea name="late_reason" rows="3" cols="34"></textarea>
 			<p id="insertinputs" style="margin-left: 25px; margin-top: 10px; margin-bottom: -3px;"></p>
                         </div>
                     </div>
-
-
 
                     <!-- Button (Double) -->
                     <div class="form-group">
@@ -153,28 +162,42 @@
 
     var temp = moment(); //round(new Date(), moment.duration(30, "minutes"));
     var remainder = 30 - temp.minute() % 30;
-    if (remainder < 15) {
-        temp = moment(temp).add(remainder, "minutes");
-    } else {
-        temp = moment(temp).subtract(30 - remainder, "minutes");
-    }
     
+    // 10:00 -> 10:29 -> 10:00
+    // 10:31 -> 10:45 -> 10:30
+    // 10:46 -> 10:59 -> 11:00
+    if ( temp.minute() > 30 ){
+        if (remainder < 15) {
+            temp = moment(temp).add(remainder, "minutes");
+        } else {
+            temp = moment(temp).subtract(30 - remainder, "minutes");
+        }
+    } else {
+        if (remainder < 1) {
+            temp = moment(temp).add(remainder, "minutes");
+        } else {
+            temp = moment(temp).subtract(30 - remainder, "minutes");
+        }
+    }
+
     var start_time = temp.format("HH:mm");
     var end_time = temp.add(9, "hours").format("HH:mm");
     // console.log(temp.date());
     // console.log(temp.format('DD/MM/YYYY HH:mm:ss'));
-	$('.clockpicker1').clockpicker({
-            placement: 'bottom',
-            align: 'top',
-            autoclose: true,
-            'default': start_time,
-            init: function() {
-                $('#start_time').val(start_time);
-            },
-            afterDone: function() {
-                calculateDur();
-            }
-        });
+//	$('.clockpicker1').clockpicker({
+//            placement: 'bottom',
+//            align: 'top',
+//            autoclose: true,
+//            'default': start_time,
+//            init: function() {
+//                $('#start_time').val(start_time);
+//            },
+//            afterDone: function() {
+//                calculateDur();
+//            }
+//        });
+
+    $('#start_time').val(start_time);
 
     $('.clockpicker2').clockpicker({
         placement: 'bottom',
@@ -219,7 +242,11 @@
 
 	if (endDate.diff(startDate, 'hours') < 0) {
 		endDate = moment(endDate, "DD-MM-YYYY").add('days', 1);
+// momota add start
+	} else if (endDate.diff(startDate, 'days') > 0){
+		endDate = moment(endDate, "DD-MM-YYYY").subtract('days', 1);
 	}
+// momota add end
 
         var hours = endDate.diff(startDate, 'hours');
         var minutes = endDate.diff(startDate, 'minutes') % 60;
@@ -253,28 +280,42 @@
 
     <script>
 	$(document).ready(function() {
-        calculateDur();
+	    calculateDur();
 	    var objToday = new Date(),
             curDay = objToday.getDate() < 10 ? "0" + objToday.getDate() : objToday.getDate(),
-            curMonth = (objToday.getMonth() + 1) < 10 ? "0" + (objToday.getMonth() + 1) : objToday.getMonth(),
+            curMonth = (objToday.getMonth() + 1) < 10 ? "0" + (objToday.getMonth() + 1) : objToday.getMonth() + 1,
+            curMonth = (objToday.getMonth() + 1),
             curYear = objToday.getFullYear();
             var start_day = curYear + '-' + curMonth + '-' + curDay;
 
-	    $('.date').datepicker({
-    	    maxViewMode: 2,
-    	    todayBtn: "linked",
-    	    language: "ja",
-    	    orientation: "bottom left",
-    	    daysOfWeekHighlighted: "0,6",
-    	    autoclose: true,
-    	    todayHighlight: true,
-    	    toggleActive: true,
-    	    setDate: new Date(),
-        　　init: function() {
-                $('#start_day').val(start_day);
-            }
-	    });
-        $('.date').datepicker('update', new Date());
+
+//	    $('.date').datepicker({
+//    	        maxViewMode: 2,
+//    	        todayBtn: "linked",
+//    	        language: "ja",
+//    	        orientation: "bottom left",
+//    	        daysOfWeekHighlighted: "0,6",
+//    	        autoclose: true,
+//    	        todayHighlight: true,
+//    	        toggleActive: true,
+//    	        setDate: new Date(),
+//        　　    init: function() {
+//                    $('#start_day').val(start_day);
+//                }
+//	    });
+
+//            $('.date').datepicker('update', new Date());
+	    $('#start_day').val(start_day);
 	});
     </script>
+
+
+    <script src={{asset('/js/bootstrap-combobox.js')}}></script>
+
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $('.combobox').combobox();
+        });
+    </script>
+
 @endsection

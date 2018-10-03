@@ -4,13 +4,23 @@
 <div class="container">
 	<div class="row">
 		<div class="col-md-12 panel">
-			<h3>作業リスト</h3>
 			@if(Auth::User()->isadmin == 0)
-			<a href="{{url('/home')}}" class="btn btn-primary">新しい作業を入力する</a>
+                            <h3>作業リスト</h3>
+                            <a href="{{url('/home')}}" class="btn btn-primary">新しい作業を入力する</a>
+                            <a href="{{url('/batchadd')}}" class="btn btn-primary">休暇連絡</a>
+                            <a href="{{url('/expense/expenses_processing')}}" class="btn btn-primary">経費精算</a>
+                            <a href="{{url('/export/exportexcel')}}" class="btn btn-primary" style="float: right;">Excel エクスポート</a>
 			@endif
 			<br>
+
                         @if(Auth::User()->isadmin == 1)
-                        <a href="{{url('/admin')}}" class="btn btn-primary">ユーザーリストに戻る</a>
+                            @foreach ($users as $user)
+                                <h3>作業リスト：[{{$user->name}}]</h3>
+                            @endforeach
+                            <a href="{{url('/admin')}}" class="btn btn-primary">ユーザーリストに戻る</a>
+                            <a href="{{url('/batchadd/'.$user->id)}}" class="btn btn-primary">休暇連絡</a>
+                            <a href="{{url('/expense/expenses_processing/'.$user->id)}}" class="btn btn-primary">経費精算</a>
+                            <a href="{{url('/export/exportexcel/'.$user->id)}}" class="btn btn-primary" style="float: right;">Excel エクスポート</a>
                         @endif
 
 			<div class="table-responsive">
@@ -19,22 +29,22 @@
 						<th class="col-ms-1 text-center">月日</th>
 						<th class="col-ms-1 text-center">開始時刻</th>
 						<th class="col-ms-1 text-center">終了時刻</th>
-                                                <th class="col-ms-1 text-center">控除時間</th>
+						<th class="col-ms-1 text-center">控除時間</th>
 						<th class="col-ms-1 text-center">工数</th>
 						<th class="col-ms-2">プロジェクト</th>
-                                                <th class="col-ms-1">作業内容</th>
-                                                <th class="col-ms-1">職場</th>
-                                                <th class="col-ms-1 text-center">遅刻</th>
+						<th class="col-ms-1">作業内容</th>
+						<th class="col-ms-1">職場</th>
+						<th class="col-ms-2 text-center">備考</th>
 						<th class="col-ms-1 text-center">編集</th>
 						<th class="col-ms-1 text-center">削除</th>
 					</thead>
 					<tbody>
 					@foreach ($projects as $project)
-                        			<tr>
+						<tr>
 							<td class="col-ms-1 text-center">{{date("Y-m-d",strtotime($project->start_day))}}</td>
 							<td class="col-ms-1 text-center">{{$project->start_time}}</td>
 							<td class="col-ms-1 text-center">{{$project->finish_time}}</td>
-                                                        <td class="col-ms-1 text-center">
+							<td class="col-ms-1 text-center">
 								@if($project->lunch_time == 1 || $project->lunch_time == 0) 00:00 @endif
 								@if($project->lunch_time == 2) 00:30 @endif 
 								@if($project->lunch_time == 3) 01:00 @endif
@@ -42,16 +52,14 @@
 								@if($project->lunch_time == 5) 02:00 @endif
 								@if($project->lunch_time == 6) 02:30 @endif
 								@if($project->lunch_time == 7) 03:00 @endif
+                                                                @if($project->lunch_time == 8) 03:30 @endif
+                                                                @if($project->lunch_time == 9) 04:00 @endif
 							</td>
 							<td class="col-ms-1 text-center">{{$project->duration}}</td>
 							<td class="col-ms-2">{{$project->projname}}</td>
-                                                        <td class="col-ms-1">{{$project->rolename}}</td>
-                                                        <td class="col-ms-1">{{$project->workplacename}}</td>
-							<td class="col-ms-1 text-center">
-							@if($project->late == 1)
-                        					<p data-placement="top" data-toggle="tooltip" title="{{$project->late_reason}}"><span class="bg-danger btn-xs glyphicon glyphicon-bell"></span></a></p>
-							@endif
-							</td>
+							<td class="col-ms-1">{{$project->rolename}}</td>
+							<td class="col-ms-1">{{$project->workplacename}}</td>
+							<td class="col-ms-2">{{$project->late_reason}}</td>
 							<td class="col-ms-1 text-center"><p data-placement="top" data-toggle="tooltip" title="編集"><a href="{{url('/userproject/edit/'.$project->id )}}" class="btn btn-primary btn-xs" data-title="Edit"><span class="glyphicon glyphicon-pencil"></span></a></p></td>
 							<td class="col-ms-1 text-center"><p data-placement="top" data-toggle="tooltip" title="削除"><a href="{{url('/userproject/delete/'.$project->id)}}" class="btn btn-danger btn-xs" data-title="Delete"><span class="glyphicon glyphicon-trash"></span></a></p></td>
 						</tr>

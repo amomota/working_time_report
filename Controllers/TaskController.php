@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\User;
 use App\Userproject;
 use App\Project;
 use App\Role;
@@ -29,69 +30,65 @@ class TaskController extends Controller
                         $project->rolename = $temp_role->name;
                         $project->workplacename = $temp_workplace->name;
 		}
-    	return view('taskslist')->with('projects', $projects);
+        return view('taskslist')->with('projects', $projects);
     }
 
     public function batchAdd(Request $request) {
-        if (Auth::User()->isadmin) {
-            return redirect()->to('/admin');
-        }
+//        if (Auth::User()->isadmin) {
+//            return redirect()->to('/admin');
+//        }
         $projects = Project::all();
         $roles = Role::all();
         $workplaces = Workplace::all();
-        $userproject = Userproject::where('user_id', Auth::User()->id)->orderBy('created_at', 'desc')->first();
+        if (Auth::User()->isadmin) {
+            $userproject = Userproject::where('user_id', $request->userId)->orderBy('created_at', 'desc')->first();
+            $userid = $request->userId;
+            return view('batchadd')->with(compact('projects', $projects, 'roles', $roles, 'workplaces', $workplaces, 'userproject', $userproject, 'userid', $userid));
+        } else {
+            $userproject = Userproject::where('user_id', Auth::User()->id)->orderBy('created_at', 'desc')->first();
+            return view('batchadd')->with(compact('projects', $projects, 'roles', $roles, 'workplaces', $workplaces, 'userproject', $userproject));
+        }
 
-        return view('batchadd')->with(compact('projects', $projects, 'roles', $roles, 'workplaces', $workplaces, 'userproject', $userproject));
     }
+
 
     public function batchSave(Request $request) {
 
-$output = new \Symfony\Component\Console\Output\ConsoleOutput();
-
-$output->writeln('hello');
-
-$output2 = new \Symfony\Component\Console\Output\ConsoleOutput(2);
-
-$output2->writeln('hello2');
-
-//$output3 = new Symfony\Component\Console\Output\ConsoleOutput();
-
-//$output3->writeln('hello3');
-//$output4 = new symfony\Component\Console\Output\ConsoleOutput();
-
-//$output4->writeln('hello4');
-
-//$output5 = new Symfony\Component\Console\Output\ConsoleOutput(2);
-
-//$output5->writeln('hello5');
-
-//$output6 = new symfony\Component\Console\Output\ConsoleOutput(2);
-
-//$output6->writeln('hello6');
-
-
-
-//$output = new symfony\console\Output\ConsoleOutput();
-//$output->writeln("<info>Error message</info>");
-//	$day_array = explode(';', $request->day_list);
-//	foreach($day_array as $current_day) {
- //           $userproject = new Userproject;
- //$current_day = $request->day_list;
-   //         $userproject->user_id = Auth::User()->id;
-   //         $userproject->project_id = $request->project;
-   //         $userproject->role_id = $request->role;
-   //         $userproject->workplace_id = $request->workplace;
+	$day_array = explode(';', $request->day_list);
+	foreach($day_array as $current_day) {
+            $userproject = new Userproject;
+            if (Auth::User()->isadmin) {
+                $userproject->user_id = $request->userId;
+            } else {
+                $userproject->user_id = Auth::User()->id;
+            }
+            $userproject->project_id = '9999';
+            $userproject->role_id = 9999;
+            $userproject->workplace_id = '9999';
    //         $userproject->start_day = $current_day->format('Y-m-d');
-   //         $userproject->start_time = $request->start_time;
-   //         $userproject->finish_time = $request->finish_time;
+            $userproject->start_day = $current_day;
+            $userproject->start_time = '-';
+            $userproject->finish_time = '-';
    //         $userproject->finish_day = $current_day->format('Y-m-d');
-   //         $userproject->lunch_time = $request->lunch_time;
-   //         $userproject->duration = $request->duration;
-   //         $userproject->late = 0;
-   //         $userproject->late_reason = '';
+            $userproject->finish_day = $current_day;
+            $userproject->lunch_time = '0';
+            $userproject->duration = '-';
+            $userproject->late = '0';
+            $userproject->late_reason = $request->leave_reason;
+            $userproject->ip_info = \Request::ip();
 
-   //         $userproject->save();
-   //     }
+            $userproject->save();
+        }
+
+        if (Auth::User()->isadmin) {
+//            $users = User::where('id',$request->userId)->get();
+//            $projects = Userproject::where('user_id', $request->userId)->orderBy('created_at', 'desc')->get();
+//            return view('taskslist')->with(compact('projects', $projects, 'users', $users));
+
+              return redirect()->action( 'AdminController@userTasks',$request->userId);
+        }
+
         return redirect()->to('taskslist');
+
     }
 }

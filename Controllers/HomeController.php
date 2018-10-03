@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\User;
 use App\Userproject;
 use App\Project;
 use App\Role;
@@ -48,6 +49,11 @@ class HomeController extends Controller
     }
 
     public function startProject(Request $request) {
+
+        $this->validate($request,[
+            'project' => 'required',
+        ]);
+
         $userproject = new Userproject;
 
         $userproject->user_id = Auth::User()->id;
@@ -62,6 +68,7 @@ class HomeController extends Controller
         $userproject->duration = $request->duration;
         $userproject->late = $request->late_chck ? 1 : 0;
         $userproject->late_reason = $request->late_reason;
+        $userproject->ip_info = \Request::ip();
 
         $userproject->save();
 
@@ -70,56 +77,106 @@ class HomeController extends Controller
 
     public function editProject(Request $request) {
 
-            if (Auth::User()->isadmin) {
+        $userproject = Userproject::where('id', $request->projId)->firstOrFail();
+        $allprojects = Project::where('disable','1')->orderBy('name')->get();
+        $allroles = Role::all();
+        $allworkplaces = Workplace::all();
 
-                $userproject = Userproject::where('id', $request->projId)->firstOrFail();
-                $allprojects = Project::all();
-                $allroles = Role::all();
-        	    $allworkplaces = Workplace::all();
+        if (Auth::User()->isadmin) {
+            $user = User::where('id',Auth::User()->id)->firstOrFail();
+        }else{
+            $user = User::where('id',$userproject->user_id)->firstOrFail();
+        }
 
-                return view('editproject')->with( array(
-                    'allprojects' => $allprojects,
-                    'allroles' => $allroles,
-                    'allworkplaces' => $allworkplaces,
-                    'userproject' => $userproject
-                    ));
+        // ブラックリスト対象者は編集をすることができない
+        if($user->blacklist){
+            return response('編集処理が行えません。修正が必要な場合は、管理者もしくは加茂まで連絡願います。',200)->header('Content-Type', 'text/plain');
+        }else{
+            return view('editproject')->with( array(
+                                                'allprojects' => $allprojects,
+                                                'allroles' => $allroles,
+                                                'allworkplaces' => $allworkplaces,
+                                                'userproject' => $userproject
+                                               ));
+        }
 
-            } else {
-                $userproject = Userproject::where('id', $request->projId)
-                                ->where('user_id', Auth::User()->id)
-                                ->firstOrFail();
-                $allprojects = Project::all();
-                $allroles = Role::all();
-                $allworkplaces = Workplace::all();
-
-                return view('editproject')->with( array(
-                    'allprojects' => $allprojects,
-                    'allroles' => $allroles,
-                    'allworkplaces' => $allworkplaces,
-                    'userproject' => $userproject
-                    ));
-            }
     }
 
     public function updateProject(Request $request) {
+
+        $this->validate($request,[
+            'project' => 'required',
+        ]);
+
         $userproject = Userproject::where('id', $request->projId)->firstOrFail();
+
+        // ロギング出力に必要な情報を取得
+        $logging_path = "/var/www/html/temp/storage/logs/mod_logging.log";
+        $today = date('Y-m-d H:i:s');
+        $temp_user = User::where('id',$userproject->user_id)->first();
+        $temp_rolename = Role::where('id', $userproject->role_id)->first();
+        $temp_workplacename =Workplace::where('id', $userproject->workplace_id)->first();
+
+        // 管理者と一般ユーザでコメントを分岐
+        if (Auth::User()->isadmin) {
+            error_log($today . " に 管理者 が " . $temp_user->name . " の勤怠を変更しました" .
+                       "\n", 3, $logging_path);
+        } else {
+            error_log($today . " に " . $temp_user->name . " が " . $temp_user->name . " の勤怠を変更しました" .
+                       "\n", 3, $logging_path);
+        }
+
+        // 変更前のログ取得
+        error_log("変更前：" .
+                  $userproject->project_id .   "\t" .
+                  $userproject->start_day .    "\t" .
+                  $userproject->start_time .   "\t" .
+                  $userproject->finish_day .   "\t" .
+                  $userproject->finish_time .  "\t" .
+                  $temp_rolename->name .       "\t" .
+                  $temp_workplacename->name .  "\t" .
+                  $userproject->late_reason .  "\t" .
+                  "\n",
+                  3, $logging_path
+                 );
+
         $userproject->project_id = $request->project;
         $userproject->role_id = $request->role;
         $userproject->workplace_id = $request->workplace;
         $userproject->start_day = $request->start_day;
         $userproject->start_time = $request->start_time;
+        $userproject->finish_day = $request->finish_day;
         $userproject->finish_time = $request->finish_time;
         $userproject->lunch_time = $request->lunch_time;
         $userproject->duration = $request->duration;
         $userproject->late = $request->late_chck ? 1 : 0;
         $userproject->late_reason = $request->late_reason;
 
+        $temp2_rolename = Role::where('id', $userproject->role_id)->first();
+        $temp2_workplacename =Workplace::where('id', $userproject->workplace_id)->first();
+
+        // 変更後のログを取得
+        error_log("変更後：" .
+                  $userproject->project_id .   "\t" .
+                  $userproject->start_day .    "\t" .
+                  $userproject->start_time .   "\t" .
+                  $userproject->finish_day .   "\t" .
+                  $userproject->finish_time .  "\t" .
+                  $temp2_rolename->name .      "\t" .
+                  $temp2_workplacename->name . "\t" .
+                  $userproject->late_reason .  "\t" .
+                  "\n\n",
+                  3, $logging_path
+                 );
+
+        // データベースへ保存
         $userproject->save();
-	if (Auth::User()->isadmin) {
-        	return redirect()->to('/usertasks/'.$userproject->user_id);
-	} else{
-		return redirect()->to('taskslist');
-	}
+
+        if (Auth::User()->isadmin) {
+                return redirect()->to('/usertasks/'.$userproject->user_id);
+        } else{
+                return redirect()->to('taskslist');
+        }
     }
 
     public function deleteProject(Request $request) {
